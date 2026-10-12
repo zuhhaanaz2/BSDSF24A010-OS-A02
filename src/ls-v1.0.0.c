@@ -20,6 +20,7 @@
 
 enum { MODE_DEFAULT, MODE_LONG, MODE_HORIZONTAL };
 int display_mode = MODE_DEFAULT;
+int recursive_flag = 0;
 
 void   do_ls(const char *dir);
 char **read_names(const char *dir, int *count, int *maxlen);
@@ -35,13 +36,15 @@ void   mode_to_str(mode_t m, char *s);
 int main(int argc, char *argv[])
 {
     int opt;
-    while ((opt = getopt(argc, argv, "lx")) != -1) {
+    while ((opt = getopt(argc, argv, "lxR")) != -1) {
         if (opt == 'l')
             display_mode = MODE_LONG;
         else if (opt == 'x')
             display_mode = MODE_HORIZONTAL;
+        else if (opt == 'R')
+            recursive_flag = 1;
         else {
-            fprintf(stderr, "Usage: %s [-l] [-x] [dir...]\n", argv[0]);
+            fprintf(stderr, "Usage: %s [-lxR] [dir...]\n", argv[0]);
             exit(1);
         }
     }
@@ -50,7 +53,7 @@ int main(int argc, char *argv[])
         do_ls(".");
     else {
         for (int i = optind; i < argc; i++) {
-            if (argc - optind > 1)
+            if (argc - optind > 1 && !recursive_flag)
                 printf("%s:\n", argv[i]);
             do_ls(argv[i]);
         }
@@ -62,10 +65,13 @@ void do_ls(const char *dir)
 {
     int n, maxlen;
     char **names = read_names(dir, &n, &maxlen);
-    if (names == NULL)
+    if (names == NULL)                        /* cannot open: stop here */
         return;
 
     qsort(names, n, sizeof(char *), cmp_names);
+
+    if (recursive_flag)
+        printf("%s:\n", dir);                 /* directory header like ls -R */
 
     if (display_mode == MODE_LONG)
         print_long(dir, names, n);
@@ -73,6 +79,20 @@ void do_ls(const char *dir)
         print_horizontal(dir, names, n, maxlen);
     else
         print_columns(dir, names, n, maxlen);
+
+    if (recursive_flag) {                     /* now visit each subdirectory */
+        for (int i = 0; i < n; i++) {
+            if (strcmp(names[i], ".") == 0 || strcmp(names[i], "..") == 0)
+                continue;
+            char path[PATH_LEN];
+            struct stat st;
+            snprintf(path, PATH_LEN, "%s/%s", dir, names[i]);   /* full path */
+            if (lstat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
+                printf("\n");
+                do_ls(path);                  /* recursive call */
+            }
+        }
+    }
 
     for (int i = 0; i < n; i++)
         free(names[i]);
