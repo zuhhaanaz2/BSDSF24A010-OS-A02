@@ -16,6 +16,7 @@ int display_mode = MODE_DEFAULT;
 
 void   do_ls(const char *dir);
 char **read_names(const char *dir, int *count, int *maxlen);
+int    cmp_names(const void *a, const void *b);
 int    term_width(void);
 void   print_columns(const char *dir, char **names, int n, int maxlen);
 void   print_horizontal(const char *dir, char **names, int n, int maxlen);
@@ -56,6 +57,8 @@ void do_ls(const char *dir)
     char **names = read_names(dir, &n, &maxlen);
     if (names == NULL)
         return;
+
+    qsort(names, n, sizeof(char *), cmp_names);   /* sort before displaying */
 
     if (display_mode == MODE_LONG)
         print_long(dir, names, n);
@@ -101,6 +104,13 @@ char **read_names(const char *dir, int *count, int *maxlen)
     return names;
 }
 
+int cmp_names(const void *a, const void *b)
+{
+    const char *s1 = *(const char **)a;       /* a points to a char* element */
+    const char *s2 = *(const char **)b;
+    return strcmp(s1, s2);
+}
+
 int term_width(void)
 {
     struct winsize w;
@@ -134,10 +144,10 @@ void print_horizontal(const char *dir, char **names, int n, int maxlen)
 {
     int width = term_width();
     int colw  = maxlen + 2;
-    int pos   = 0;                              /* current horizontal position */
+    int pos   = 0;
 
     for (int i = 0; i < n; i++) {
-        if (pos > 0 && pos + colw > width) {  /* next name won't fit: wrap */
+        if (pos > 0 && pos + colw > width) {
             printf("\n");
             pos = 0;
         }
