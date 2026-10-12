@@ -3,7 +3,7 @@
 * This is the source file of version 1.0.0
 * Read the write-up of the assignment to add the features to this base version
 * Usage:
-*       $ lsv1.0.0 
+*       $ lsv1.0.0
 *       % lsv1.0.0  /home
 *       $ lsv1.0.0  /home/kali/   /etc/
 */
@@ -17,27 +17,43 @@
 
 extern int errno;
 
-void do_ls(const char *dir);
+void do_ls(const char *dir, int long_flag);
 
-int main(int argc, char const *argv[])
+int main(int argc, char *argv[])
 {
-    if (argc == 1)
+    int opt;
+    int long_flag = 0;
+
+    while ((opt = getopt(argc, argv, "l")) != -1)
     {
-        do_ls(".");
+        switch (opt)
+        {
+        case 'l':
+            long_flag = 1;
+            break;
+        default:
+            fprintf(stderr, "Usage: %s [-l] [directory...]\n", argv[0]);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    if (optind == argc)
+    {
+        do_ls(".", long_flag);
     }
     else
     {
-        for (int i = 1; i < argc; i++)
+        for (int i = optind; i < argc; i++)
         {
             printf("Directory listing of %s : \n", argv[i]);
-            do_ls(argv[i]);
-	    puts("");
+            do_ls(argv[i], long_flag);
+            puts("");
         }
     }
     return 0;
 }
 
-void do_ls(const char *dir)
+void do_ls(const char *dir, int long_flag)
 {
     struct dirent *entry;
     DIR *dp = opendir(dir);
@@ -51,6 +67,8 @@ void do_ls(const char *dir)
     {
         if (entry->d_name[0] == '.')
             continue;
+        if (long_flag)
+            printf("[long] ");
         printf("%s\n", entry->d_name);
     }
 
