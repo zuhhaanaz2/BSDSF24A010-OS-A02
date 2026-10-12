@@ -11,6 +11,13 @@
 
 #define PATH_LEN 4096
 
+#define C_RESET   "\033[0m"
+#define C_BLUE    "\033[0;34m"
+#define C_GREEN   "\033[0;32m"
+#define C_RED     "\033[0;31m"
+#define C_PINK    "\033[0;35m"
+#define C_REVERSE "\033[7m"
+
 enum { MODE_DEFAULT, MODE_LONG, MODE_HORIZONTAL };
 int display_mode = MODE_DEFAULT;
 
@@ -58,7 +65,7 @@ void do_ls(const char *dir)
     if (names == NULL)
         return;
 
-    qsort(names, n, sizeof(char *), cmp_names);   /* sort before displaying */
+    qsort(names, n, sizeof(char *), cmp_names);
 
     if (display_mode == MODE_LONG)
         print_long(dir, names, n);
@@ -106,7 +113,7 @@ char **read_names(const char *dir, int *count, int *maxlen)
 
 int cmp_names(const void *a, const void *b)
 {
-    const char *s1 = *(const char **)a;       /* a points to a char* element */
+    const char *s1 = *(const char **)a;
     const char *s2 = *(const char **)b;
     return strcmp(s1, s2);
 }
@@ -210,8 +217,25 @@ void show_long(const char *dir, const char *name)
 
 void print_name(const char *dir, const char *name)
 {
-    (void)dir;
-    printf("%s", name);
+    char path[PATH_LEN];
+    struct stat st;
+    const char *color = "";
+
+    snprintf(path, PATH_LEN, "%s/%s", dir, name);
+    if (lstat(path, &st) == 0) {
+        mode_t m = st.st_mode;
+        if (S_ISDIR(m))
+            color = C_BLUE;
+        else if (S_ISLNK(m))
+            color = C_PINK;
+        else if (S_ISCHR(m) || S_ISBLK(m) || S_ISSOCK(m) || S_ISFIFO(m))
+            color = C_REVERSE;
+        else if (m & (S_IXUSR | S_IXGRP | S_IXOTH))
+            color = C_GREEN;
+        else if (strstr(name, ".tar") || strstr(name, ".gz") || strstr(name, ".zip"))
+            color = C_RED;
+    }
+    printf("%s%s%s", color, name, C_RESET);
 }
 
 void mode_to_str(mode_t m, char *s)
